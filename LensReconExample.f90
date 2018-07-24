@@ -2,6 +2,11 @@
 !Not at all realistic (no masks, not even any simulated noise, only isotropic noise in the filter weights)
 !AL Apr 2014
 
+
+!-----------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! Module for the quadratic estimator
+
     module Recon
     use HealpixObj
     use HealpixVis
@@ -13,22 +18,39 @@
 
     contains
 
-    subroutine NoiseInit(Noise, NoiseVar, noise_fwhm_deg, lmax)
+
+
+! initialise the noise power spectrum
+    subroutine NoiseInit(Noise, sensitivity, noise_fwhm, lmax)
     Type(HealpixPower):: Noise
-    real(dp) NoiseVar, noise_fwhm_deg
+    real(dp) sensitivity, noise_fwhm
     real(sp) amp, xlc, sigma2
     integer lmax, L
 
     call healpixPower_Init(Noise,lmax,.false.)
 
-    xlc= 180*sqrt(8.*log(2.))/3.14159
-    sigma2 = (noise_fwhm_deg/xlc)**2
+!    ! convert from beam fwhm in degrees to sigma in radians
+!    xlc= 180*sqrt(8.*log(2.))/3.14159
+!    sigma2 = (noise_fwhm_deg/xlc)**2
+
+    ! convert from muK*arcmin to muK*rad
+    sensitivity = sensitivity * (3.14159/180.)/60.   ! convert to muK*rad
+
+    ! convert from beam fwhm in arcmin to sigma in rad
+    noise_fwhm = noise_fwhm * (3.14159/180.) / 60.   ! convert to rad
+    sigma2 = noise_fwhm / sqrt(8.*log(2.))   ! convert from fwhm to sigma
+    sigma2 = sigma2*sigma2
+
     do l=0, lmax
-        Noise%Cl(l,1) = NoiseVar*exp(l*(l+1)*sigma2)
+        Noise%Cl(l,1) = sensitivity * sensitivity * exp(l*(l+1)*sigma2)
     end do
 
     end subroutine NoiseInit
 
+
+
+! Compute the lensing noise power spectrum for phi,
+! ie the normalization of the phi quadratic estimator.
     subroutine GetA_L(P, Noise, AL, lmax_phi, lmax_est)
     Type(HealpixPower) :: P, Noise
     real(dp) AL(:)
@@ -56,6 +78,7 @@
 
 
 
+! Non-normalized quadratic estimator for phi
     subroutine QuadraticPhi(H,A, MGradT, LensedCl, Noise, lminest,lmaxest)
     Type(HealpixInfo)  :: H
     Type(HealpixPower) :: LensedCl, Noise
@@ -64,6 +87,8 @@
     integer l,lmaxest, lminest
 
     print *,'get quadratic', lminest, lmaxest
+
+    ! Create inverse-variance weighted map
     call HealpixAlm_Init(AOut, lmaxest,1)
     AOut%TEB=0
     do l=max(2,lminest),lmaxest
@@ -71,11 +96,13 @@
     end do
     call HealpixAlm2Map(H, AOut,MFilt,H%npix)
 
+    ! Create Wiener-filtered gradient
     do l=max(2,lminest),lmaxest
         AOut%TEB(1,l,:) = Aout%TEB(1,l,:)  * LensedCl%Cl(l,1) 
     end do
     call HealpixAlm2GradientMap(H, AOut,MGradT,H%npix,'T')
 
+    ! Do the convolution
     MGradT%SpinField =  MGradT%SpinField * MFilt%TQU(:,1)
     call HealpixMap_Free(Mfilt)
     call HealpixAlm_Free(AOut)
@@ -83,6 +110,12 @@
     end subroutine QuadraticPhi
 
     end module Recon
+
+
+
+!-----------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+
 
     program SimLensReconTT
     use HealpixObj
@@ -112,7 +145,7 @@
     integer status, i, L
     integer lmax_phi, lmax_est
     real(dp), allocatable :: AL(:)
-    real(dp) Noisevar, noise_fwhm_deg
+    real(dp) sensitivity, noise_fwhm
 #ifdef MPIPIX
 
     call mpi_init(i)
@@ -126,6 +159,12 @@
 #endif
         stop 'No ini'
     end if
+
+
+
+!-----------------------------------------------------------------------------
+! Read all parameters from .ini file
+
     nside  = Ini_Read_Int('nside')
     npix = nside2npix(nside)
 
@@ -137,9 +176,17 @@
     want_pol = Ini_Read_Logical('want_pol')
     rand_seed = Ini_Read_Int('rand_seed')
 
-    noiseVar = Ini_read_real('noise')/mK**2
-    noise_fwhm_deg = Ini_read_real('noise_fwhm')/60
-    call NoiseInit(Noise, NoiseVar, noise_fwhm_deg, lmax)
+!    noiseVar = Ini_read_real('noise')/mK**2  ! mK is microK
+!    noise_fwhm_deg = Ini_read_real('noise_fwhm')/60
+!    call NoiseInit(Noise, NoiseVar, noise_fwhm_deg, lmax)
+
+    sensitivity = Ini_read_real('sensitivity')  ! in muK*arcmin
+    noise_fwhm = Ini_read_real('noise_fwhm') ! in arcmin
+    call NoiseInit(Noise, sensitivity, noise_fwhm, lmax)
+
+
+
+
 
     lmax_phi = Ini_read_int('lmax_phi')
     lmax_est = Ini_read_int('lmax_est',lmax_phi)
@@ -159,6 +206,10 @@
 
     call Ini_Close
 
+
+!-----------------------------------------------------------------------------
+! Create file paths
+
     file_stem =  trim(out_file_root)//'_lmax'//trim(IntToStr(lmax))//'_nside'//trim(IntTOStr(nside))// &
     '_interp'//trim(RealToStr(interp_factor,3))
 
@@ -166,6 +217,10 @@
     file_stem = trim(file_stem)//trim(IntToStr(lens_method)) 
 
     call SetIdlePriority()
+
+
+!-----------------------------------------------------------------------------
+! Initialize healpix
 
     if (w8name=='') then
         call get_environment_variable('HEALPIX', healpixloc, status=status)
@@ -181,20 +236,27 @@
         call HealpixInit(H,nside, max(lmax, lmax_phi*2),.true., w8dir=w8name,method=mpi_division_method) 
     end if 
 
-    if (H%MpiID ==0) then !if we are main thread
-        !All but main thread stay in HealpixInit
+!-----------------------------------------------------------------------------
 
+    !All but main thread stay in HealpixInit
+    if (H%MpiID ==0) then !if we are main thread
+
+        ! Create empty maps
         call HealpixAlm_nullify(A)
         call HealpixMap_nullify(GradPhi)
         call HealpixMap_nullify(M)
 
+        !Read unlensed C_l text files as produced by CAMB (or CMBFAST if you aren't doing lensing)
         call HealpixPower_ReadFromTextFile(UnlensedCl,cls_file,lmax,pol=.true.,dolens = .true.)
-        !Reads in unlensed C_l text files as produced by CAMB (or CMBFAST if you aren't doing lensing)
 
+        ! Read lensed C_l text files
         call HealpixPower_ReadFromTextFile(LensedCl,cls_lensed_file,lmax,pol=.true.)
 
+        ! Print power spectra to check
         print *,'at L=1500, Lens, Unlens, noise C_l =', LensedCl%Cl(1500,1), UnlensedCl%Cl(1500,1), Noise%Cl(1500,1)
 
+        ! Compute normalization for quadratic estimator,
+        ! and write to file
         allocate(AL(lmax_phi))
         aname=trim(out_file_root)//'_AL.txt'
         if (.not. FileExists(aname)) then
@@ -212,35 +274,65 @@
             close(1)
         end if
 
+
+!-----------------------------------------------------------------------------
+! Get the lensed temperature map
+
+        ! If an input lensed map is provided, read it
         if (FileExists(in_map)) then
             print *, 'reading input map', trim(in_map)
             call HealpixMap_Read(M,in_map)
             call HealpixAlm_Nullify(SimAlm)
+
+        ! Otherwise, create a mock lensed map
         else
+            ! Generate the GRF unlensed map, and the GRF phi map
+            ! write them to SimAlm
             call HealpixAlm_Sim(SimAlm, UnlensedCl, rand_seed,HasPhi=.true., dopol = want_pol)
+            ! Measure the unlensed power spectrum
             call HealpixAlm2Power(SimAlm,P)
+            ! Write the unlensed power spectrum to file
             call HealpixPower_Write(P,trim(file_stem)//'_unlensed_simulated.dat')
 
+            ! Compute the unlensed gradient, save it in "gradPhi"
             call HealpixAlm2GradientMap(H,SimAlm, GradPhi,H%npix,'PHI')
+            ! Create lensed temperature map M,
+            ! from SimAlm which contains unlensed T and phi,
+            ! and from gradPhi which contains the unlensed gradient
             call HealpixInterpLensedMap_GradPhi(H,SimAlm,GradPhi, M, interp_factor, interp_cyl)
-
+            ! Write lensed temperature map M to file
             call HealpixMap_Write(M, in_map)
         end if
 
-        !Have simulated lensed map M
-        !Test very simple TT reconstruction
-        !Note no noise added to map, N0=A_L will not be correct noise bias
 
+
+!-----------------------------------------------------------------------------
+!Test very simple TT reconstruction
+!Note no noise added to map, N0=A_L will not be correct noise bias
+
+        ! Get the lensed alm A from the lensed map M
         call HealpixMap2Alm(H,M, A,lmax)
 
+        ! Compute non-normalized quadratic estimator for phi,
+        ! from lensed alm in A,
+        ! write it to MGradT
         call QuadraticPhi(H,A, MGradT, LensedCl, Noise, 2,lmax)
+        ! convert this map MGradT into alm, written to A
         call HealpixMap2Alm(H, MGradT, A,lmax_est)
+
+        ! compute normalized quadratic estimator for phi,
+        ! write it to PhiRecon
         call HealpixAlm_Init(PhiRecon,lmax_phi,npol=0,HasPhi=.true.)
         do i=1,lmax_phi
             PhiRecon%Phi(1,i,:) =  A%SpinEB(1,i,:) * AL(i) / sqrt(i*(i+1.))
         end do
+
+        ! Compute the power spectrum of the normalized phi quadratic estimator
         call HealpixAlm2Power(PhiRecon, P)
+        ! Write it to file
         call HealpixPower_write(P, trim(file_stem)//'recon_power.dat')
+        ! If the input phi map is known, compute the cross spectrum,
+        ! and write it to file
         if (associated(SimAlm%Phi)) then
             call HealpixAlm2CrossPhi(PhiRecon, SimAlm, P)
             call HealpixPower_write(P, trim(file_stem)//'recon_cross_power.dat')

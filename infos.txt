@@ -1,0 +1,3 @@
+Compile by running the bash script ./make_script.sh
+salloc -N 1 --qos=interactive -C haswell -t 04:00:00 -L SCRATCH
+./recon recon_example.ini

@@ -1,0 +1,67 @@
+
+#default settings for ifort
+
+#F90C     = mpif90
+#F90C    = ifort
+F90C	= gfortran
+
+#healpix = $(HEALPIX)
+#healpix = $HEALPIX
+#healpix = /u/jch/Healpix_3.31
+healpix = /home/jch/Healpix_3.31
+#LAPACKL = -mkl=sequential -lmpi -lhealpix -openmp
+#LAPACKL = -mkl=sequential -lhealpix
+LAPACKL = -lhealpix #gfortran
+
+#remove -xHost if cluster is not homogeneous
+#add -DHEALPIXI4B if using older healpix and get errors about arguments not matching
+#FFLAGS = -O3 -xHost -ip -fpp -error-limit 500 -DMPIPIX -DMPI -heap-arrays
+#FFLAGS = -O3 -ip -fpp -error-limit 500 -DMPIPIX -DMPI -heap-arrays
+#FFLAGS = -O3 -ip -fpp -error-limit 500 -heap-arrays -DHEALPIXI4B
+#FFLAGS = -O3 -ip -fpp -error-limit=500 -DMPIPIX -DMPI -fmax-stack-var-size #gfortran
+FFLAGS = -O3 -fmax-stack-var-size=32768 #gfortran
+
+#cfitsio = /usr/local/Cluster-Apps/cfitsio/intel/3.300
+#cfitsio ?= $(CFITSIO)
+#cfitsio ?= $CFITSIO
+#cfitsio = /usr/peyton/common/software/cfitsio/3.30
+cfitsio = /home/jch/cfitsio
+
+#thisdir = /u/jch/lenspix/
+thisdir = /home/jch/Peyton/lenspix
+
+#F90FLAGS = $(FFLAGS) -I$(INCLUDE) -I$(healpix)/include -L$(cfitsio)/lib -L$(healpix)/lib $(LAPACKL) -lcfitsio
+F90FLAGS = $(FFLAGS) -I$(healpix)/include_gfortran -L$(cfitsio)/lib -L$(healpix)/lib_gfortran $(LAPACKL) -lcfitsio -lcurl
+#F90FLAGS = $(FFLAGS) -I$(INCLUDE) -I$(healpix)/include -I$(thisdir) -L$(cfitsio)/lib -L$(healpix)/lib $(LAPACKL) -lcfitsio
+
+OBJFILES= toms760.o inifile.o utils.o spin_alm_tools.o \
+   HealpixObj.o HealpixVis.o
+
+LENSPIX = $(OBJFILES) SimLens.o
+
+default: simlens
+all: simlens recon
+
+spin_alm_tools.o:  utils.o toms760.o
+HealpixObj.o: spin_alm_tools.o
+HealpixVis.o: HealpixObj.o
+SimLens.o: HealpixVis.o inifile.o
+
+.f.o:
+	f77 $(F90FLAGS) -c $<
+
+%.o: %.f90
+	$(F90C) $(F90FLAGS) -c $*.f90
+
+%.o: %.F90
+	$(F90C) $(F90FLAGS) -c $*.F90
+
+
+simlens: $(LENSPIX) 	
+	$(F90C) -o simlens $(LENSPIX) $(F90FLAGS) $(LINKFLAGS)
+
+recon: $(OBJFILES) LensReconExample.o
+	$(F90C) -o recon $(OBJFILES) LensReconExample.o $(F90FLAGS) $(LINKFLAGS)
+
+clean:
+	rm -f *.o* *.e* *.mod *.d *.pc *.obj core* *.il
