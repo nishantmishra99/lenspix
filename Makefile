@@ -54,4 +54,3 @@ clean:
 	rm -f *.o* *.e* *.mod *.d *.pc *.obj core* *.il
 	cp $(HEALPIX)/include_f90/* ./
 
-
