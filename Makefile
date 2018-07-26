@@ -25,9 +25,8 @@ OBJFILES= toms760.o inifile.o utils.o spin_alm_tools.o \
 
 LENSPIX = $(OBJFILES) SimLens.o
 
-default: recon
 
-#default: simlens
+default: simlens recon
 #all: simlens recon
 
 spin_alm_tools.o:  utils.o toms760.o
@@ -53,4 +52,5 @@ recon: $(OBJFILES) LensReconExample.o
 
 clean:
 	rm -f *.o* *.e* *.mod *.d *.pc *.obj core* *.il
+   cp $HEALPIX/include_f90/* ./
 
