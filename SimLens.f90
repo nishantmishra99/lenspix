@@ -39,11 +39,20 @@
 #endif
         stop 'No ini'
     end if
+
+
+!-----------------------------------------------------------------------------
+! Read parameters from input file
+
     nside  = Ini_Read_Int('nside')
     npix = nside2npix(nside)
 
-    lmax   = Ini_Read_Int('lmax')  
+    ! lmax of what?
+    lmax   = Ini_Read_Int('lmax')
+
+    ! power spectrum of unlensed CMB
     cls_file = Ini_Read_String('cls_file')
+
     out_file_root = Ini_Read_String('out_file_root')
 
     lens_method = Ini_Read_Int('lens_method')
@@ -55,15 +64,20 @@
 
     Ini_Fail_On_Not_Found = .false.
 
-
     w8name = Ini_Read_String('w8dir')
     interp_factor=0
     if (lens_method == lens_interp) interp_factor = Ini_Read_Real('interp_factor',3.)
 #ifdef MPIPIX
     mpi_division_method = Ini_Read_Int('mpi_division_method',division_balanced);
-#endif 
+#endif
 
+    ! close the input file
     call Ini_Close
+
+
+!-----------------------------------------------------------------------------
+! Define the output file name
+! for the lensed CMB power spectrum to be computed below
 
     if (interp_algo == 1) then
         file_stem =  trim(out_file_root)//'_lmax'//trim(IntToStr(lmax))//'_nside'//trim(IntTOStr(nside))// &
@@ -81,6 +95,10 @@
 
     call SetIdlePriority()
 
+
+!-----------------------------------------------------------------------------
+! Initializing healpix
+
     if (w8name=='') then
         call get_environment_variable('HEALPIX', healpixloc, status=status)
         if (status==0) then
@@ -95,23 +113,36 @@
         call HealpixInit(H,nside, lmax,.true., w8dir=w8name,method=mpi_division_method) 
     end if 
 
-    if (H%MpiID ==0) then !if we are main thread
-        !All but main thread stay in HealpixInit
 
+!-----------------------------------------------------------------------------
+! Compute the lensed power spectrum
+
+
+    ! All but main thread stay in HealpixInit
+    ! if we are main thread
+    if (H%MpiID ==0) then
+
+        ! Create empty full sky maps
         call HealpixPower_nullify(P)
         call HealpixAlm_nullify(A)
         call HealpixMap_nullify(GradPhi)
         call HealpixMap_nullify(M)
 
+        ! Reads in unlensed C_l text files as produced by CAMB
+        ! (or CMBFAST if you aren't doing lensing)
         call HealpixPower_ReadFromTextFile(P,cls_file,lmax,pol=.true.,dolens = .true.)
-        !Reads in unlensed C_l text files as produced by CAMB (or CMBFAST if you aren't doing lensing)
 
-        call HealpixAlm_Sim(A, P, rand_seed,HasPhi=.true., dopol = want_pol)
+        ! Generate GRF map for unlensed CMB and phi
+        call HealpixAlm_Sim(A, P, rand_seed, HasPhi=.true., dopol = want_pol)
+        ! Compute power spectrum of unlensed CMB map (and phi?)
         call HealpixAlm2Power(A,P)
+        ! Write unlensed CMB (and phi?) power spectrum to file
         call HealpixPower_Write(P,trim(file_stem)//'_unlensed_simulated.dat')
 
+        ! Compute the deflection d = grad phi (and what is H?)
         call HealpixAlm2GradientMap(H,A, GradPhi,npix,'PHI')
 
+        ! Lens the map
         if (lens_method == lens_exact) then
             call HealpixExactLensedMap_GradPhi(H,A,GradPhi,M)
         else if (lens_method == lens_interp) then
@@ -120,19 +151,24 @@
             stop 'unknown lens_method'
         end if
 
-        call HealpixMap2Alm(H,M, A, lmax, dopol = want_pol)
         !This automatically frees previous content of A, and returns new one
+        call HealpixMap2Alm(H,M, A, lmax, dopol = want_pol)
 
+        ! Compute power spectrum
         call HealpixAlm2Power(A,P)
-        call HealpixAlm_Free(A)
         !Note usually no need to free objects unless memory is short
+        call HealpixAlm_Free(A)
 
+        ! write lensed power spectrum to file
         call HealpixPower_Write(P,cls_lensed_file)
 
         !Save map to .fits file
         !call HealpixMap_Write(M, '!lensed_map.fits')
 
     end if
+
+
+!-----------------------------------------------------------------------------
 
 #ifdef MPIPIX
     call HealpixFree(H)

@@ -61,6 +61,11 @@
 
     contains
 
+!-----------------------------------------------------------------------------
+
+    ! Create power spectrum object P
+    ! Contains power spectra for T (if pol is false) or T, E, B if (if pol is true)
+    ! Contains power spectrum of phi (if dolens is true)
     subroutine HealpixPower_Init(P, almax, pol, dolens, nofree)
     Type(HealpixPower) P
     integer, intent(in) :: almax
@@ -95,12 +100,20 @@
 
     end subroutine HealpixPower_Init
 
+
+!-----------------------------------------------------------------------------
+
+
     subroutine HealpixPower_Nullify(P)
     Type(HealpixPower) P
 
     nullify(P%Cl, P%PhiCl)
 
     end subroutine HealpixPower_Nullify
+
+
+!-----------------------------------------------------------------------------
+
 
     subroutine HealpixPower_Free(P)
     Type(HealpixPower) P
@@ -112,6 +125,10 @@
 
     end subroutine HealpixPower_Free
 
+
+!-----------------------------------------------------------------------------
+
+
     subroutine HealpixPower_Assign(P, Pin)
     Type(HealpixPower) P, Pin
 
@@ -122,7 +139,11 @@
     end subroutine HealpixPower_Assign
 
 
+!-----------------------------------------------------------------------------
 
+    ! Create power spectrum object P from reading file f
+    ! has T, E, B if pol is true
+    ! has phi if dolens is true
     subroutine HealpixPower_ReadFromTextFile(P, f, lmax, pol, dolens, full_phi_cross)
     use AMLutils
     Type(HealpixPower) P
@@ -232,6 +253,12 @@
     end subroutine HealpixPower_ReadFromTextFile
 
 
+!-----------------------------------------------------------------------------
+
+
+    ! Write power spectrum object to file,
+    ! including T, E, B if present,
+    ! and phi is present
     subroutine HealpixPower_Write(P,fname)
     use AMLutils
     Type(HealpixPower) P
@@ -278,8 +305,10 @@
     end  subroutine HealpixPower_Write
 
 
+!-----------------------------------------------------------------------------
+
+    ! Sum the power spectra from P and Ptotal into Ptotal
     subroutine HealpixPower_AddPower(Ptotal, P, AddPhi)
-    !Adds P to PTotal (useful for getting means over realisations).
     Type(HealpixPower) P, Ptotal
     logical, intent(in) :: AddPhi
 
@@ -295,6 +324,12 @@
     end subroutine HealpixPower_AddPower
 
 
+!-----------------------------------------------------------------------------
+
+    ! Multiply power spectrum in P with Gaussian beam/debeam,
+    ! and write it into P.
+    ! sgn=-1 for beam smoothing
+    ! sgn=1 for beam de-smoothing
     subroutine HealpixPower_Smooth(P,fwhm, sgn)
     Type(Healpixpower) :: P
     integer l, sn
@@ -316,6 +351,13 @@
 
     end subroutine HealpixPower_Smooth
 
+
+!-----------------------------------------------------------------------------
+
+    ! Multiply the power spectrum in P
+    ! with any function beam of ell
+    ! sgn=-1 for multiplication
+    ! sgn=1 for division
     subroutine HealpixPower_Smooth_Beam(P,beam, sgn)
     Type(Healpixpower) :: P
     integer l, sn
@@ -337,6 +379,10 @@
     end do
 
     end subroutine HealpixPower_Smooth_Beam
+
+
+!-----------------------------------------------------------------------------
+
 
     subroutine HealpixPower_Smooth_Beam2(P,beam1,beam2, sgn)
     Type(Healpixpower) :: P
@@ -361,7 +407,11 @@
     end subroutine HealpixPower_Smooth_Beam2
 
 
+!-----------------------------------------------------------------------------
 
+    ! Compute power spectrum object P
+    ! from alm object A.
+    ! Includes T, E, B, phi, and T-phi, E-phi
     subroutine HealpixAlm2Power(A,P)
     Type(HealpixPower) P
     Type(HealpixAlm) :: A
@@ -408,6 +458,13 @@
 
     end subroutine HealpixAlm2Power
 
+
+!-----------------------------------------------------------------------------
+
+
+    ! Compute cross-power spectrum P
+    ! from alm objects A and A2
+    ! Only for T, E, B, not for phi
     subroutine HealpixAlm2CrossPower(A,A2, P)
     Type(HealpixPower) P
     Type(HealpixAlm) :: A, A2
@@ -437,6 +494,12 @@
 
     end subroutine HealpixAlm2CrossPower
 
+
+!-----------------------------------------------------------------------------
+
+
+    ! Computes cross-power spectrum of phi only
+    ! from alm objects A and A2
     subroutine HealpixAlm2CrossPhi(A,A2, P)
     Type(HealpixPower) P
     Type(HealpixAlm) :: A, A2
@@ -451,6 +514,13 @@
 
     end subroutine HealpixAlm2CrossPhi
 
+
+!-----------------------------------------------------------------------------
+
+
+    ! Generates alm object,
+    ! with T, E, B (if npol=3) or T (if npol=0),
+    ! and phi (if HasPhi is true)
     subroutine HealpixAlm_Init(A,almax,npol,spinmap, HasPhi)
     Type(HealpixAlm) :: A
     integer, intent(in) :: almax
@@ -499,6 +569,9 @@
     end subroutine HealpixAlm_Init
 
 
+!-----------------------------------------------------------------------------
+
+    ! Copy alm object Ain into Aout
     subroutine HealpixAlm_Assign(AOut, Ain, max_pol)
     Type(HealpixAlm) :: AOut, Ain
     integer, intent(in), optional :: max_pol
@@ -531,6 +604,10 @@
 
     end subroutine HealpixAlm_Assign
 
+
+!-----------------------------------------------------------------------------
+
+
     subroutine HealpixAlm_Nullify(A)
     Type(HealpixAlm) :: A
 
@@ -539,6 +616,9 @@
     nullify(A%Phi)
 
     end subroutine HealpixAlm_Nullify
+
+
+!-----------------------------------------------------------------------------
 
 
     subroutine HealpixAlm_Free(A)
@@ -552,6 +632,10 @@
 
     end subroutine HealpixAlm_Free
 
+
+!-----------------------------------------------------------------------------
+
+
     subroutine HealpixAlm_PhiOnly(A)
     Type(HealpixAlm) :: A
     integer status
@@ -563,6 +647,9 @@
     A%spin = nospinmap
     A%npol = 0
     end subroutine
+
+
+!-----------------------------------------------------------------------------
 
 
     subroutine HealpixAlm_GradientOf(A, B, field, updown)
@@ -587,6 +674,9 @@
             spin = 3
         end if
     end if
+
+
+!-----------------------------------------------------------------------------
 
 
     call HealpixAlm_Init(B,A%lmax,0,spinmap= spin)
@@ -1025,6 +1115,10 @@
     end  subroutine HealpixMap_AddUncorrelatedNoise
 
 
+!-----------------------------------------------------------------------------
+
+    ! Takes a power spectrum object P (T, E, B, phi)
+    ! and generates a GRF map object (T, E, B, phi)
     subroutine HealpixAlm_Sim(A, P, seed, HasPhi, dopol,DoT)
     use random
     use alm_tools
@@ -1056,7 +1150,8 @@
         if (.not. DoT) wantpol=0
     end if
 
-
+    ! If phi GRF wanted, make sure the P input object
+    ! has the phi power spectrum
     if (present(HasPhi)) then
         wantphi= HasPhi
         if (wantphi .and. .not. associated(P%PhiCl)) call MpiStop('HealpixAlm_Sim: PhiCl not present')
@@ -1064,11 +1159,14 @@
         wantphi = .false.
     end if
 
+    ! Create an empty map object consistent with P object
     call HealpixAlm_Init(A,P%lmax, wantpol, HasPhi=wantphi)
+    ! Generate GRF for T only
     sqrt2 = sqrt(2.)
     if (wantpol/=0) then
         A%TEB=0
         do l=1, P%lmax
+            ! First index 1 means we only generate GRF for T
             A%TEB(1,l,0) =Gaussian1()* sqrt(P%Cl(l,1))
             tamp = sqrt(P%Cl(l,1)/2)
             do m = 1, l
@@ -1079,9 +1177,9 @@
 
     if (wantphi) A%Phi=0
 
+    ! Generate GRF for E, correlated with T,
+    ! and GRF for B
     if (wantpol >= 3) then
-        !polarization, E corrolated to T
-
         do l = 2, P%lmax
             if (p%cl(l,C_T) == 0) then
                 tamp = 1.0  !Prevent divide by zero - TE should also be zero
@@ -1114,8 +1212,9 @@
             end do
         end do
     end if
+
+    ! Generate GRF for phi, correlated with T and E (Lewis May 2010)
     if (wantphi) then
-        !Make phi with correct correlation to T and E, AL May 2010
         do l=1, P%lmax
             if (wantpol==0) then
                 A%Phi(1,l,0) =Gaussian1()* sqrt(P%PhiCl(l,1))
@@ -1155,7 +1254,11 @@
     end subroutine HealpixAlm_Sim
 
 
+!-----------------------------------------------------------------------------
 
+    ! Generate GRF for phi
+    ! input: power spectrum object P, and optional seed
+    ! output: map object A
     subroutine HealpixAlm_SimPhi(A, P, seed)
     use random
     use alm_tools
@@ -1172,9 +1275,10 @@
         if (.not. RandInited) call InitRandom
     end if
     RandInited = .true.
+    ! Create empty map object
     call HealpixAlm_Init(A,P%lmax, 0,HasPhi = .true.)
     if (.not. P%lens) call MpiStop('must have phi power spectrum')
-
+    ! Generate GRF for phi
     A%Phi(:,0,:)=0
     do l=1, P%lmax
         A%Phi(1,l,0) =Gaussian1()* sqrt(P%PhiCl(l,1))
@@ -1186,6 +1290,10 @@
     end subroutine HealpixAlm_SimPhi
 
 
+!-----------------------------------------------------------------------------
+
+    ! Generate empty map object M,
+    ! with T, E, B, phi if needed
     subroutine HealpixMap_Init(M, npix, nmaps, nested, spinmap, HasPhi, pol, nside)
 
     Type(HealpixMap) :: M
@@ -1252,6 +1360,8 @@
     end subroutine HealpixMap_Init
 
 
+!-----------------------------------------------------------------------------
+
     subroutine HealpixMap_AllocatePhi(M)
     Type(HealpixMap) :: M
     integer status
@@ -1261,6 +1371,9 @@
     M%HasPhi = .true.
 
     end  subroutine HealpixMap_AllocatePhi
+
+
+!-----------------------------------------------------------------------------
 
     subroutine HealpixMap_AllocateTQU(M, nmaps)
     Type(HealpixMap) :: M
@@ -1276,6 +1389,8 @@
     end  subroutine HealpixMap_AllocateTQU
 
 
+!-----------------------------------------------------------------------------
+
     subroutine HealpixMap_DeAllocateTQU(M)
     Type(HealpixMap) :: M
     integer status
@@ -1285,6 +1400,10 @@
     M%nmaps = 0
 
     end subroutine HealpixMap_DeAllocateTQU
+
+
+!-----------------------------------------------------------------------------
+
 
     subroutine HealpixMap_PhiOnly(M)
     Type(HealpixMap) :: M
@@ -1298,6 +1417,9 @@
     M%nmaps = 0
 
     end subroutine HealpixMap_PhiOnly
+
+
+!-----------------------------------------------------------------------------
 
 
     subroutine HealpixMap_Assign(MOut, Min)
@@ -1327,6 +1449,9 @@
     end if
 
     end subroutine HealpixMap_Assign
+
+
+!-----------------------------------------------------------------------------
 
 
     subroutine HealpixMap_Read(OutMAP,fname, map_limit, phi_map, spin_map)
@@ -1413,6 +1538,10 @@
     ! enddo
 
     end subroutine HealpixMap_Read
+
+
+!-----------------------------------------------------------------------------
+
 
     subroutine HealpixMap_Write(M, fname, overwrite, phi_map, spin_map)
     Type(HealpixMap), intent(in) :: M
@@ -1509,6 +1638,10 @@
     end if
     end  subroutine HealpixMap_Write
 
+
+!-----------------------------------------------------------------------------
+
+
     subroutine HealpixMap_SymmetricCut(H,M,cos_theta_cut)
     !sets to zero in symmetric cut around galaxy
     Type (HealpixInfo) :: H
@@ -1546,6 +1679,10 @@
     end do
 
     end subroutine HealpixMap_SymmetricCut
+
+
+!-----------------------------------------------------------------------------
+
 
     subroutine HealpixAlm_Write(A, fname)
     !Thanks to Sam Leach
@@ -1592,6 +1729,8 @@
     end  subroutine HealpixAlm_Write
 
 
+!-----------------------------------------------------------------------------
+
 
     subroutine HealpixMap_Free(M)
     Type(HealpixMap) :: M
@@ -1608,6 +1747,10 @@
 
     end subroutine HealpixMap_Free
 
+
+!-----------------------------------------------------------------------------
+
+
     subroutine HealpixMap_Nullify(M)
     Type(HealpixMap) :: M
 
@@ -1615,6 +1758,8 @@
     nullify(M%SpinField,M%Phi)
 
     end subroutine HealpixMap_Nullify
+
+!-----------------------------------------------------------------------------
 
 
     subroutine HealpixMap_ForceRing(M)
@@ -1641,6 +1786,9 @@
     end subroutine HealpixMap_ForceRing
 
 
+!-----------------------------------------------------------------------------
+
+
     subroutine HealpixMap_ForceNest(M)
     USE pix_tools, ONLY : convert_ring2nest
     Type(HealpixMap) :: M
@@ -1664,6 +1812,9 @@
     M%ordering = ord_nest
 
     end subroutine HealpixMap_ForceNest
+
+
+!-----------------------------------------------------------------------------
 
 
     subroutine HealpixMapMulCut(InMap,CutMap,OutMap, map_ix, missval)
@@ -1701,6 +1852,10 @@
     end if
     end subroutine HealpixMapMulCut
 
+
+!-----------------------------------------------------------------------------
+
+
     subroutine HealpixMap_MulCutFile(InMap,CutFile,OutMap)
     Type(HealpixMap), intent(in) :: InMap
     Type(HealpixMap), intent(out) :: OutMap
@@ -1712,6 +1867,10 @@
     call HealpixMap_Free(CutMap)
 
     end subroutine HealpixMap_MulCutFile
+
+
+!-----------------------------------------------------------------------------
+
 
     subroutine HealpixMap2Power(H, M,P, almax)
     Type (HealpixInfo) :: H
@@ -1725,6 +1884,10 @@
     call HealpixAlm_Free(A)
 
     end subroutine HealpixMap2Power
+
+
+!-----------------------------------------------------------------------------
+
 
     subroutine HealpixMap2alm(H, M,A, almax,theta_cut_deg,map_ix, dopol)
 
@@ -1778,6 +1941,10 @@
 
     end subroutine HealpixMap2alm
 
+
+!-----------------------------------------------------------------------------
+
+
     subroutine HealpixMapArray_Free(M)
     Type(HealpixMap) :: M(:)
     integer i
@@ -1787,6 +1954,10 @@
     end do
 
     end subroutine HealpixMapArray_Free
+
+
+!-----------------------------------------------------------------------------
+
 
     subroutine HealpixMapSet2CrossPowers(H, M, Pows, nmap, almax, dofree)
     integer, intent(in) :: nmap
@@ -1830,6 +2001,9 @@
     end subroutine HealpixMapSet2CrossPowers
 
 
+!-----------------------------------------------------------------------------
+
+
     subroutine HealpixMap_Smooth(H, MapIn, MapOut, lmax, fwhm)
     Type(HealpixInfo) :: H
     Type(HealpixMap) :: MapIn, MapOut
@@ -1844,6 +2018,10 @@
     call HealPixAlm_Free(A)
 
     end subroutine HealpixMap_Smooth
+
+
+!-----------------------------------------------------------------------------
+
 
     subroutine HealpixMap_SimulateUnlensed(H, M, P, Beam, want_pol)
     Type(HealpixInfo) :: H
@@ -1863,6 +2041,10 @@
     end subroutine HealpixMap_SimulateUnlensed
 
 
+!-----------------------------------------------------------------------------
+
+    ! input: healpix info H, map object A
+    ! output: map object M
     subroutine HealpixAlm2GradientMap(H, A, M, npix, What)
     Type (HealpixInfo) :: H
     Type(HealpixMap) :: M
@@ -1871,12 +2053,14 @@
     integer(I_NPIX), intent(in) :: npix
     character(LEN=*), intent(in) :: What
 
+    ! Create empty map object M
     call HealpixMap_Init(M,npix,nmaps = 0, spinmap = 1)
     if (What(1:1) == 'P') then
         if (.not. A%HasPhi) call MpiStop('HealpixAlm2GradientMap: No phi field')
         call alm2GradientMap(H, A%lmax, A%Phi,M%SpinField)
     else if (What(1:1) == 'T') then
-        call HealpixAlm_Init(AT, A%lmax,npol = 0, HasPhi = .true.)
+        ! Create empty alm object for
+        call HealpixAlm_Init(AT, A%lmax, npol = 0, HasPhi = .true.)
         AT%Phi = A%TEB(1:1,:,:)
         call alm2GradientMap(H,A%lmax, AT%Phi,M%SpinField)
         call HealpixAlm_Free(AT)
@@ -1884,6 +2068,9 @@
         call MpiStop('HealpixAlm2GradientMap: unknown field')
     end if
     end subroutine HealpixAlm2GradientMap
+
+
+!-----------------------------------------------------------------------------
 
 
     subroutine  HealpixExactLensedMap(H,A, M, npix)
