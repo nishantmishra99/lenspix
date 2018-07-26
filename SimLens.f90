@@ -115,7 +115,7 @@
 
 
 !-----------------------------------------------------------------------------
-! Compute the lensed power spectrum
+! Compute the lensed map and power spectrum
 
 
     ! All but the main thread stay in HealpixInit
@@ -123,14 +123,14 @@
     if (H%MpiID ==0) then
 
         ! Create empty full sky maps
-        call HealpixPower_nullify(P)
-        call HealpixAlm_nullify(A)
-        call HealpixMap_nullify(GradPhi)
-        call HealpixMap_nullify(M)
+        call HealpixPower_nullify(P)   ! power spectrum object
+        call HealpixAlm_nullify(A)  ! alm object
+        call HealpixMap_nullify(GradPhi)  ! map object
+        call HealpixMap_nullify(M)  ! map object
 
         ! Reads in unlensed C_l text files as produced by CAMB
         ! (or CMBFAST if you aren't doing lensing)
-        call HealpixPower_ReadFromTextFile(P,cls_file,lmax,pol=.true.,dolens = .true.)
+        call HealpixPower_ReadFromTextFile(P,cls_file,lmax,pol=.true.,dolens=.true.)
 
         ! Generate GRF alm for unlensed CMB and phi
         call HealpixAlm_Sim(A, P, rand_seed, HasPhi=.true., dopol = want_pol)
@@ -145,11 +145,11 @@
         ! Write unlensed CMB (and phi?) power spectrum to file
         call HealpixPower_Write(P,trim(file_stem)//'_unlensed_simulated.dat')
 
+!         Alternatively, read a phi map from fits file
+!         Convert the phi map to phi alm
+
         ! Compute the deflection d = grad phi (H is the healpix object)
         call HealpixAlm2GradientMap(H,A, GradPhi,npix,'PHI')
-
-!        ! Alternatively, read the input directly
-!        call HealpixMap_Read(GradPhi, 'input_gradphi_map.fits')
 
         ! Lens the map: from the unlensed alm (A) and the deflection map (GradPhi),
         ! compute the lensed map M
@@ -160,6 +160,9 @@
         else
             stop 'unknown lens_method'
         end if
+
+        !Save lensed map to .fits file
+        call HealpixMap_Write(M, '!lensed_map.fits')
 
         ! Convert the lensed map (M) to lensed alm (A),
         ! overwriting the unlensed alm
@@ -173,8 +176,6 @@
         ! write lensed power spectrum to file
         call HealpixPower_Write(P,cls_lensed_file)
 
-        !Save lensed map to .fits file
-        call HealpixMap_Write(M, '!lensed_map.fits')
 
     end if
 
