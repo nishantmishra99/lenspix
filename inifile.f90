@@ -6,16 +6,18 @@
 module IniFile
  implicit none
  public
-
+!constant variables that are not supposed to be altered
   integer, parameter :: Ini_max_name_len = 128
-
   integer, parameter :: Ini_max_string_len = 1024
+
+!booleans
   logical :: Ini_fail_on_not_found = .false.
 
   logical :: Ini_Echo_Read = .false.
 
   logical :: Ini_AllowDuplicateKeys = .false.
 
+!type that creates variables that 
   type TNameValue
    !no known way to make character string pointers..
     character(Ini_max_name_len)  :: Name
@@ -38,7 +40,7 @@ module IniFile
    logical SlashComments
    Type (TNameValueList) :: L, ReadValues
   end Type TIniFile
- 
+
   Type(TIniFile) :: DefIni
 
 contains
@@ -46,7 +48,7 @@ contains
    subroutine TNameValueList_Init(L, ignoreDuplicates)
     Type (TNameValueList) :: L
     logical, intent(in), optional :: ignoreDuplicates
-    
+
      L%Count = 0
      L%Capacity = 0
      L%Delta = 128
@@ -59,7 +61,7 @@ contains
    subroutine TNameValueList_Clear(L)
     Type (TNameValueList) :: L
     integer i, status
-     
+
     do i=L%count,1,-1
      deallocate (L%Items(i)%P, stat = status)
     end do
@@ -76,7 +78,7 @@ contains
 
      do i=1, L%Count
        if (L%Items(i)%P%Name == AName) then
-          AValue = L%Items(i)%P%Value 
+          AValue = L%Items(i)%P%Value
           return
        end if
      end do
@@ -97,9 +99,9 @@ contains
        end if
      end do
      AValue = .false.
-     
+
    end function TNameValueList_HasKey
-    
+
    subroutine TNameValueList_Add(L, AName, AValue)
     Type (TNameValueList) :: L
     character(LEN=*), intent(in) :: AName, AValue
@@ -107,8 +109,8 @@ contains
     if (.not. Ini_AllowDuplicateKeys .and. TNameValueList_HasKey(L,AName)) then
       if (L%ignoreDuplicates) return
       write (*,*) 'IniFile,TNameValueList_Add: duplicate key name in file: '//trim(AName)
-      stop 
-     end if 
+      stop
+     end if
     if (L%Count == L%Capacity) call TNameValueList_SetCapacity(L, L%Capacity + L%Delta)
     L%Count = L%Count + 1
     allocate(L%Items(L%Count)%P)
@@ -121,7 +123,7 @@ contains
     Type (TNameValueList) :: L
     integer C
     type(TNameValue_pointer), dimension(:), pointer :: TmpItems
-    
+
     if (L%Count > 0) then
       if (C < L%Count) stop 'TNameValueList_SetCapacity: smaller than Count'
       allocate(TmpItems(L%Count))
@@ -132,19 +134,19 @@ contains
       deallocate(TmpItems)
     else
      allocate(L%Items(C))
-    end if  
+    end if
     L%Capacity = C
-  
+
    end subroutine TNameValueList_SetCapacity
 
    subroutine TNameValueList_Delete(L, i)
     Type (TNameValueList) :: L
     integer, intent(in) :: i
-     
+
      deallocate(L%Items(i)%P)
      if (L%Count > 1) L%Items(i:L%Count-1) = L%Items(i+1:L%Count)
      L%Count = L%Count -1
-     
+
    end subroutine TNameValueList_Delete
 
   subroutine Ini_NameValue_Add(Ini,AInLine)
@@ -156,10 +158,10 @@ contains
       InLine=trim(adjustl(AInLine))
       EqPos = scan(InLine,'=')
       if (EqPos/=0 .and. InLine(1:1)/='#' .and. InLine(1:7) /= 'COMMENT' ) then
-   
+
          AName = trim(InLine(1:EqPos-1))
-         
-         S = adjustl(InLine(EqPos+1:)) 
+
+         S = adjustl(InLine(EqPos+1:))
            if (Ini%SlashComments) then
            slashpos=scan(S,'/')
            if (slashpos /= 0) then
@@ -187,7 +189,7 @@ contains
 
      call TNameValueList_Init(DefIni%L)
      call TNameValueList_Init(DefIni%ReadValues, .true.)
-          
+
      if (present(slash_comments)) then
       call Ini_Open_File(DefIni,filename,unit_id,aerror,slash_comments)
      else
@@ -234,40 +236,40 @@ contains
      integer lastpos, i
      Type (TNameValueList) IncudeFiles
      logical doappend, FileExists
-     
+
      if (present(append)) then
       doappend=append
      else
       doappend=.false.
-     end if  
-     
+     end if
+
      if (.not. doappend) then
        call TNameValueList_Init(Ini%L)
        call TNameValueList_Init(Ini%ReadValues, .true.)
      end if
- 
-    call TNameValueList_Init(IncudeFiles) 
-     
+
+    call TNameValueList_Init(IncudeFiles)
+
     if (present(slash_comments)) then
      Ini%SlashComments = slash_comments
     else
      Ini%SlashComments = .false.
     end if
-         
+
     open(unit=unit_id,file=filename,form='formatted',status='old', err=500)
-   
-    do 
+
+    do
       read (unit_id,'(a)',end=400) InLine
       if (InLine == 'END') exit;
       if (InLine(1:8) == 'INCLUDE(') then
            lastpos = scan(InLine,')')
            if (lastpos/=0) then
-            call TNameValueList_Add(IncudeFiles, trim(adjustl(InLine(9:lastpos-1))),'')            
+            call TNameValueList_Add(IncudeFiles, trim(adjustl(InLine(9:lastpos-1))),'')
            else
             stop 'Ini_Open_File: error in INCLUDE line'
-           end if 
+           end if
       elseif (InLine /= '') then
-       call Ini_NameValue_Add(Ini,InLine) 
+       call Ini_NameValue_Add(Ini,InLine)
       end if
     end do
 
@@ -284,10 +286,10 @@ contains
          if (.not. FileExists) stop 'Ini_Open_File: INCLUDE file not found'
        end if
        call Ini_Open_File(Ini, IncludeFile, unit_id,  &
-                          error, slash_comments, append=.true.)      
+                          error, slash_comments, append=.true.)
     end do
     call TNameValueList_Clear(IncudeFiles)
-    
+
     return
 
 500 error=.true.
@@ -323,12 +325,12 @@ contains
 
   subroutine Ini_Close_File(Ini)
     Type(TIniFile) :: Ini
-   
+
     call TNameValueList_Clear(Ini%L)
     call TNameValueList_Clear(Ini%ReadValues)
 
   end  subroutine Ini_Close_File
-  
+
 
 
   function Ini_Read_String(Key, NotFoundFail) result(AValue)
@@ -371,8 +373,8 @@ contains
    end if
 
   end function Ini_Read_String_File
-  
-  
+
+
   function Ini_HasKey(Key) result(AValue)
    character (LEN=*), intent(IN) :: Key
    logical AValue
@@ -387,19 +389,19 @@ contains
    logical AValue
 
       Avalue = TNameValueList_HasKey(Ini%L, Key)
-      
+
   end function Ini_HasKey_File
 
  function Ini_Key_To_Arraykey(Key, index)  result(AValue)
     character (LEN=*), intent(IN) :: Key
     integer, intent(in) :: index
     character(LEN=Ini_max_string_len) :: AValue
-    
+
     character(LEN=32) :: numstr
-    write (numstr,*) index 
+    write (numstr,*) index
     numstr=adjustl(numstr)
-    AValue = trim(Key) // '(' // trim(numStr) // ')' 
- 
+    AValue = trim(Key) // '(' // trim(numStr) // ')'
+
  end function Ini_Key_To_Arraykey
 
   function Ini_Read_String_Array(Key, index, NotFoundFail) result(AValue)
@@ -423,14 +425,14 @@ contains
    logical, optional, intent(IN) :: NotFoundFail
    character(LEN=Ini_max_string_len) :: AValue
    character(LEN=Ini_max_string_len) :: ArrayKey
-   
+
      ArrayKey = Ini_Key_To_Arraykey(Key,index)
      if (present(NotFoundFail)) then
       AValue = Ini_Read_String_File(Ini, ArrayKey, NotFoundFail)
      else
       AValue = Ini_Read_String_File(Ini, ArrayKey)
      end if
-   
+
   end function Ini_Read_String_Array_File
 
   function Ini_Read_Int_Array(Key, index, Default)
@@ -444,13 +446,13 @@ contains
      else
       Ini_Read_Int_Array = Ini_Read_Int_Array_File(DefIni, Key, index)
      end if
-     
+
    end function Ini_Read_Int_Array
 
   function Ini_Read_Int_Array_File(Ini,Key, index, Default)
   !Reads Key(1), Key(2), etc.
    Type(TIniFile) :: Ini
-   integer Ini_Read_Int_Array_File 
+   integer Ini_Read_Int_Array_File
    integer, optional, intent(IN) :: Default
    integer, intent(in) :: index
    character (LEN=*), intent(IN) :: Key
@@ -482,7 +484,7 @@ contains
    integer, optional, intent(IN) :: Default
    character  (LEN=*), intent(IN) :: Key
    character(LEN=Ini_max_string_len) :: S
-   
+
    S = Ini_Read_String_File(Ini, Key,.not. present(Default))
    if (S == '') then
       if (.not. present(Default)) then
@@ -499,7 +501,7 @@ contains
   return
 10 write (*,*) 'error reading integer for key: '//Key
    stop
-  
+
   end function Ini_Read_Int_File
 
   function Ini_Read_Double(Key, Default)
@@ -512,16 +514,16 @@ contains
      else
       Ini_Read_Double = Ini_Read_Double_File(DefIni, Key)
      end if
-  
+
   end function Ini_Read_Double
 
   function Ini_Read_Double_File(Ini,Key, Default)
    Type(TIniFile) :: Ini
-   double precision Ini_Read_Double_File 
+   double precision Ini_Read_Double_File
    double precision, optional, intent(IN) :: Default
    character (LEN=*), intent(IN) :: Key
    character(LEN=Ini_max_string_len) :: S
-   
+
    S = Ini_Read_String_File(Ini,Key,.not. present(Default))
    if (S == '') then
       if (.not. present(Default)) then
@@ -557,7 +559,7 @@ contains
      else
       Ini_Read_Double_Array = Ini_Read_Double_Array_File(DefIni, Key, index)
      end if
-     
+
     end function Ini_Read_Double_Array
 
 
@@ -567,7 +569,7 @@ contains
 
    Type(TIniFile) :: Ini
 
-   double precision Ini_Read_Double_Array_File 
+   double precision Ini_Read_Double_Array_File
    double precision, optional, intent(IN) :: Default
    integer, intent(in) :: index
    character (LEN=*), intent(IN) :: Key
@@ -597,11 +599,11 @@ contains
 
     function Ini_Read_Real_File(Ini,Key, Default)
     Type(TIniFile) :: Ini
-    real Ini_Read_Real_File 
+    real Ini_Read_Real_File
     real, optional, intent(IN) :: Default
     character (LEN=*), intent(IN) :: Key
     character(LEN=Ini_max_string_len) :: S
-   
+
     S = Ini_Read_String_File(Ini,Key,.not. present(Default))
     if (S == '') then
       if (.not. present(Default)) then
@@ -641,12 +643,12 @@ contains
   function Ini_Read_Real_Array_File(Ini,Key, index, Default)
   !Reads Key(1), Key(2), etc.
    Type(TIniFile) :: Ini
-   real Ini_Read_Real_Array_File 
+   real Ini_Read_Real_Array_File
    real, optional, intent(IN) :: Default
    integer, intent(in) :: index
    character (LEN=*), intent(IN) :: Key
    character(LEN=Ini_max_string_len) :: ArrrayKey
-   
+
      ArrrayKey = Ini_Key_To_Arraykey(Key,index)
      if (present(Default)) then
       Ini_Read_Real_Array_File = Ini_Read_Real_File(Ini, ArrrayKey, Default)
@@ -673,9 +675,9 @@ contains
    logical Ini_Read_Logical_File
    logical, optional, intent(IN) :: Default
    character  (LEN=*), intent(IN) :: Key
-  
+
    character(LEN=Ini_max_string_len) :: S
-   
+
    S = Ini_Read_String_File(Ini,Key,.not. present(Default))
    if (S == '') then
       if (.not. present(Default)) then
@@ -689,7 +691,7 @@ contains
 
    else
 
-    if (verify(trim(S),'10TF') /= 0) goto 10  
+    if (verify(trim(S),'10TF') /= 0) goto 10
     read (S,*, err = 10) Ini_Read_Logical_File
    end if
 
@@ -734,4 +736,3 @@ contains
   end subroutine Ini_SaveReadValues_File
 
 end module IniFile
-
