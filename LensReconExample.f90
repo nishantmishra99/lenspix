@@ -29,20 +29,16 @@
 
     call healpixPower_Init(Noise,lmax,.false.)
 
-!    ! convert from beam fwhm in degrees to sigma in radians
-!    xlc= 180*sqrt(8.*log(2.))/3.14159
-!    sigma2 = (noise_fwhm_deg/xlc)**2
-
     ! convert from muK*arcmin to muK*rad
     sensitivity = sensitivity * (3.14159/180.)/60.   ! convert to muK*rad
 
     ! convert from beam fwhm in arcmin to sigma in rad
     noise_fwhm = noise_fwhm * (3.14159/180.) / 60.   ! convert to rad
     sigma2 = noise_fwhm / sqrt(8.*log(2.))   ! convert from fwhm to sigma
-    sigma2 = sigma2*sigma2
+    sigma2 = sigma2**2
 
     do l=0, lmax
-        Noise%Cl(l,1) = sensitivity * sensitivity * exp(l*(l+1)*sigma2)
+        Noise%Cl(l,1) = sensitivity**2 * exp(l*(l+1)*sigma2)
     end do
 
     end subroutine NoiseInit
@@ -176,10 +172,6 @@
     want_pol = Ini_Read_Logical('want_pol')
     rand_seed = Ini_Read_Int('rand_seed')
 
-!    noiseVar = Ini_read_real('noise')/mK**2  ! mK is microK
-!    noise_fwhm_deg = Ini_read_real('noise_fwhm')/60
-!    call NoiseInit(Noise, NoiseVar, noise_fwhm_deg, lmax)
-
     sensitivity = Ini_read_real('sensitivity')  ! in muK*arcmin
     noise_fwhm = Ini_read_real('noise_fwhm') ! in arcmin
     call NoiseInit(Noise, sensitivity, noise_fwhm, lmax)
@@ -187,12 +179,13 @@
 
 
 
-
+    ! What are these lmax exactly?
     lmax_phi = Ini_read_int('lmax_phi')
     lmax_est = Ini_read_int('lmax_est',lmax_phi)
 
     Ini_Fail_On_Not_Found = .false.
 
+    ! unlensed temperature map to be lensed
     in_map = Ini_read_String('input_map')
     if (in_map=='') in_map = 'lensed_sim_cache.fits'
 
@@ -246,10 +239,10 @@
         call HealpixMap_nullify(GradPhi)
         call HealpixMap_nullify(M)
 
-        !Read unlensed C_l text files as produced by CAMB (or CMBFAST if you aren't doing lensing)
+        !Read power spectrum of unlensed T, E, B and of phi
         call HealpixPower_ReadFromTextFile(UnlensedCl,cls_file,lmax,pol=.true.,dolens = .true.)
 
-        ! Read lensed C_l text files
+        ! Read power spectrum of lensed T, E, B (but not phi)
         call HealpixPower_ReadFromTextFile(LensedCl,cls_lensed_file,lmax,pol=.true.)
 
         ! Print power spectra to check
@@ -288,8 +281,8 @@
         else
             ! Generate the GRF unlensed map, and the GRF phi map
             ! write them to SimAlm
-            call HealpixAlm_Sim(SimAlm, UnlensedCl, rand_seed,HasPhi=.true., dopol = want_pol)
-            ! Measure the unlensed power spectrum
+            call HealpixAlm_Sim(SimAlm, UnlensedCl, rand_seed, HasPhi=.true., dopol = want_pol)
+            ! Measure the unlensed power spectrum, write it to P
             call HealpixAlm2Power(SimAlm,P)
             ! Write the unlensed power spectrum to file
             call HealpixPower_Write(P,trim(file_stem)//'_unlensed_simulated.dat')
