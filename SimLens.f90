@@ -9,9 +9,9 @@
     use AMLUtils
     implicit none
     Type(HealpixInfo)  :: H
-    Type(HealpixMap)   :: M, GradPhi
+    Type(HealpixMap)   :: Unlensed_CMB, Phi, GradPhi, lensed_CMB
     Type(HealpixPower) :: P
-    Type(HealpixAlm)   :: A
+    Type(HealpixAlm)   :: Alm_Unlensed_CMB, Alm_Phi
 
     integer            :: nside, lmax
     integer(I_NPIX)    :: npix
@@ -89,7 +89,7 @@
     endif
 
     if (want_pol) file_stem=trim(file_stem)//'pol_'
-    file_stem = trim(file_stem)//trim(IntToStr(lens_method)) 
+    file_stem = trim(file_stem)//trim(IntToStr(lens_method))
 
     cls_lensed_file  = trim(file_stem)//'.dat'
 
@@ -108,10 +108,10 @@
 
     if (w8name=='') then
         write (*,*) 'Warning: using unit weights as no w8dir found'
-        call HealpixInit(H,nside, lmax,.true., w8dir='', method= mpi_division_method) 
+        call HealpixInit(H,nside, lmax,.true., w8dir='', method= mpi_division_method)
     else
-        call HealpixInit(H,nside, lmax,.true., w8dir=w8name,method=mpi_division_method) 
-    end if 
+        call HealpixInit(H,nside, lmax,.true., w8dir=w8name,method=mpi_division_method)
+    end if
 
 
 !-----------------------------------------------------------------------------
@@ -121,65 +121,58 @@
     ! All but the main thread stay in HealpixInit
     ! if we are the main thread
     if (H%MpiID ==0) then
+      ! create empty full sky maps
+      call HealpixMap_nullify(Unlensed_CMB) !map object
+      call HealpixMap_nullify(Phi) !map object
+      ! create empty alm for above full sky maps
+      call HealpixAlm_nullify(Alm_Unlensed_CMB) !alm object
+      call HealpixAlm_nullify(Alm_Phi) !alm object
+      ! create empty map for the GradPhi
+      call HealpixMap_nullify(GradPhi) !map object
+      ! create a final map to put the lensed map on
+      call HealpixMap_nullify(lensed_CMB)
 
-        ! Create empty full sky maps
-        call HealpixPower_nullify(P)   ! power spectrum object
-        call HealpixAlm_nullify(A)  ! alm object
-        call HealpixMap_nullify(GradPhi)  ! map object
-        call HealpixMap_nullify(M)  ! map object
+      ! Read the .fits map onto the Healpix map object
+      call HealpixMap_Read(Unlensed_CMB, 'input_unlensed_map.fits')
 
-        ! Reads in unlensed C_l text files as produced by CAMB
-        ! (or CMBFAST if you aren't doing lensing)
-        call HealpixPower_ReadFromTextFile(P,cls_file,lmax,pol=.true.,dolens=.true.)
+      ! Read the .fits map for phi onto the Healpix map object
+      call HealpixMap_Read(Unlensed_CMB, 'input_lensing_potential.fits')
 
-        ! Generate GRF alm for unlensed CMB and phi
-        call HealpixAlm_Sim(A, P, rand_seed, HasPhi=.true., dopol = want_pol)
+      ! Get unlensed alm from unlensed map
+      call HealpixMap2Alm(H, Unlensed_CMB, Alm_Unlensed_CMB, lmax, dopol=want_pol)
 
-!        ! Alternatively, just read the input unlensed map:
-!        call HealpixMap_Read(M, 'input_unlensed_map.fits')
-!        ! Get unlensed alm from unlensed map
-!        call HealpixMap2Alm(H, M, A, lmax, dopol=want_pol)
+      ! Get unlensed alm from unlensed map
+      call HealpixMap2Alm(H, Phi, Alm_Phi, lmax, dopol=want_pol)
 
-        ! Compute power spectrum of unlensed CMB map (and phi?)
-        call HealpixAlm2Power(A,P)
-        ! Write unlensed CMB (and phi?) power spectrum to file
-        call HealpixPower_Write(P,trim(file_stem)//'_unlensed_simulated.dat')
+      call HealpixAlm2GradientMap(H, Alm_Phi, GradPhi,npix,'PHI')
 
-!         Alternatively, read a phi map from fits file
-!         Convert the phi map to phi alm
+      ! Lens the map: from the unlensed alm (Alm_Unlensed_CMB) and the deflection map (GradPhi),
+      ! compute the lensed map M
+      if (lens_method == lens_exact) then
+          call HealpixExactLensedMap_GradPhi(H,Alm_Unlensed_CMB,GradPhi,M)
+      else if (lens_method == lens_interp) then
+          call HealpixInterpLensedMap_GradPhi(H,Alm_Unlensed_CMB,GradPhi, M, interp_factor, interp_method, interp_algo)
+      else
+          stop 'unknown lens_method'
+      end if
 
-        ! Compute the deflection d = grad phi (H is the healpix object)
-        call HealpixAlm2GradientMap(H,A, GradPhi,npix,'PHI')
+      !Save lensed map to .fits file
+      call HealpixMap_Write(lensed_CMB, 'output_lensed_map.fits')
 
-        ! Lens the map: from the unlensed alm (A) and the deflection map (GradPhi),
-        ! compute the lensed map M
-        if (lens_method == lens_exact) then
-            call HealpixExactLensedMap_GradPhi(H,A,GradPhi,M)
-        else if (lens_method == lens_interp) then
-            call HealpixInterpLensedMap_GradPhi(H,A,GradPhi, M, interp_factor, interp_method, interp_algo)
-        else
-            stop 'unknown lens_method'
-        end if
+      ! Convert the lensed map (M) to lensed alm (A),
+      ! overwriting the unlensed alm
+      ! call HealpixMap2Alm(H,M, A, lmax, dopol = want_pol)
 
-        !Save lensed map to .fits file
-        call HealpixMap_Write(M, '!lensed_map.fits')
+      ! Compute lensed power spectrum
+      ! call HealpixAlm2Power(A,P)
+      ! Note usually no need to free objects unless memory is short
+      ! call HealpixAlm_Free(A)
 
-        ! Convert the lensed map (M) to lensed alm (A),
-        ! overwriting the unlensed alm
-        call HealpixMap2Alm(H,M, A, lmax, dopol = want_pol)
-
-        ! Compute lensed power spectrum
-        call HealpixAlm2Power(A,P)
-        ! Note usually no need to free objects unless memory is short
-        call HealpixAlm_Free(A)
-
-        ! write lensed power spectrum to file
-        call HealpixPower_Write(P,cls_lensed_file)
+      ! write lensed power spectrum to file
+      ! call HealpixPower_Write(P,cls_lensed_file)
 
 
-    end if
-
-
+      end if
 !-----------------------------------------------------------------------------
 
 #ifdef MPIPIX
