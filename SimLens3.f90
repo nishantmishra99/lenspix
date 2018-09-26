@@ -16,7 +16,7 @@
     integer            :: nside, lmax
     integer(I_NPIX)    :: npix
     character(LEN=1024)  :: w8name = '../Healpix_2.00/data/'
-    character(LEN=1024)  :: file_stem, cls_file, out_file_root, cls_lensed_file, input_map1, input_lensing, output_map
+    character(LEN=1024)  :: file_stem, cls_file, out_file_root, cls_lensed_file
     character(LEN=1024) :: healpixloc
     integer, parameter :: lens_interp =1, lens_exact = 2
     integer :: lens_method = lens_interp
@@ -43,12 +43,6 @@
 
 !-----------------------------------------------------------------------------
 ! Read parameters from input file
-
-    !read the map input maps
-    input_map1 = Ini_Read_String('input_map1')
-    input_lensing = Ini_Read_String('input_lensing')
-    output_map = Ini_Read_String('output_map')
-
 
     nside  = Ini_Read_Int('nside')
     npix = nside2npix(nside)
@@ -139,18 +133,18 @@
       call HealpixMap_nullify(lensed_CMB)
 
       ! Read the .fits map onto the Healpix map object
-      call HealpixMap_Read(Unlensed_CMB, input_map1)
+      call HealpixMap_Read(Unlensed_CMB, 'input_unlensed_map.fits')
 
       ! Read the .fits map for phi onto the Healpix map object
-      call HealpixMap_Read(Phi, input_lensing)
+      call HealpixMap_Read(Unlensed_CMB, 'input_lensing_potential.fits')
 
       ! Get unlensed alm from unlensed map
-      call HealpixMap2alm(H, Unlensed_CMB, Alm_Unlensed_CMB, lmax, dopol=want_pol)
+      call HealpixMap2Alm(H, Unlensed_CMB, Alm_Unlensed_CMB, lmax, dopol=want_pol)
 
       ! Get unlensed alm from unlensed map
-      call HealpixMap2alm(H, Phi, Alm_Phi, lmax, dopol=want_pol)
+      call HealpixMap2Alm(H, Phi, Alm_Phi, lmax, dopol=want_pol)
 
-      call HealpixAlm2GradientMap(H, Alm_Phi, GradPhi, npix, 'T')
+      call HealpixAlm2GradientMap(H, Alm_Phi, GradPhi,npix,'PHI')
 
       ! Lens the map: from the unlensed alm (Alm_Unlensed_CMB) and the deflection map (GradPhi),
       ! compute the lensed map M
@@ -163,7 +157,7 @@
       end if
 
       !Save lensed map to .fits file
-      call HealpixMap_Write(lensed_CMB, output_map, overwrite=.true.)
+      call HealpixMap_Write(lensed_CMB, 'output_lensed_map.fits')
 
       ! Convert the lensed map (M) to lensed alm (A),
       ! overwriting the unlensed alm
@@ -176,6 +170,7 @@
 
       ! write lensed power spectrum to file
       ! call HealpixPower_Write(P,cls_lensed_file)
+
 
       end if
 !-----------------------------------------------------------------------------

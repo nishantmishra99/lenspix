@@ -12,7 +12,7 @@ LAPACKL = -mkl=sequential -lmpi -lhealpix -qopenmp
 
 #remove -xHost if cluster is not homogeneous
 #add -DHEALPIXI4B if using older healpix and get errors about arguments not matching
-FFLAGS = -O3 -xHost -ip -fpp -error-limit 500 -DMPIPIX -DMPI -heap-arrays
+FFLAGS = -O3 -xHost -ip -fpp -error-limit 500 -DMPIPIX -DMPI -heap-arrays -g -traceback
 
 #cfitsio = /usr/local/Cluster-Apps/cfitsio/intel/3.300
 #cfitsio = $(CFITSIO)
@@ -26,7 +26,7 @@ OBJFILES= toms760.o inifile.o utils.o spin_alm_tools.o \
 LENSPIX = $(OBJFILES) SimLens.o
 
 
-default: simlens recon
+default: simlens
 #all: simlens recon
 
 spin_alm_tools.o:  utils.o toms760.o
@@ -44,7 +44,7 @@ SimLens.o: HealpixVis.o inifile.o
 	$(F90C) $(F90FLAGS) -c $*.F90
 
 
-simlens: $(LENSPIX) 	
+simlens: $(LENSPIX)
 	$(F90C) -o simlens $(LENSPIX) $(F90FLAGS) $(LINKFLAGS)
 
 recon: $(OBJFILES) LensReconExample.o
@@ -53,4 +53,3 @@ recon: $(OBJFILES) LensReconExample.o
 clean:
 	rm -f *.o* *.e* *.mod *.d *.pc *.obj core* *.il
 	cp $(HEALPIX)/include_f90/* ./
-

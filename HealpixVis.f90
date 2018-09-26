@@ -1,7 +1,7 @@
 module HealpixVis
  !Code largely courtesy of Mark Ashdown
  !Visualise the sky looking at sphere from the centre
-  use HealpixObj  
+  use HealpixObj
   use Healpix_Types
  ! use AMLUtils
   implicit none
@@ -11,16 +11,16 @@ module HealpixVis
   logical :: HealpixVis_force_range = .false.
   real :: HealpixVis_abs_max = 500.
   integer, parameter :: HealpixVis_DEF_WIDTH = 800, HealpixVis_DEF_HEIGHT=400
-  
+
   type HealpixPPM
     integer :: nx, ny
-    integer, dimension(:,:,:), pointer :: rgb  => NULL() 
+    integer, dimension(:,:,:), pointer :: rgb  => NULL()
   end type HealpixPPM
 
   type HealpixCMap
     integer :: n
-    real, dimension(:), pointer :: x  => NULL() 
-    real, dimension(:,:), pointer :: rgb  => NULL() 
+    real, dimension(:), pointer :: x  => NULL()
+    real, dimension(:,:), pointer :: rgb  => NULL()
   end type HealpixCMap
 
   real, dimension(3), parameter, private :: &
@@ -55,8 +55,8 @@ contains
     type(HealpixPPM), intent(inout) :: ppm
     ppm%nx = 0
     ppm%ny = 0
-    deallocate(ppm%rgb)   
-    nullify(ppm%rgb) 
+    deallocate(ppm%rgb)
+    nullify(ppm%rgb)
   end subroutine HealpixVis_ppm_free
 
   !======================================================================
@@ -76,7 +76,7 @@ contains
     write(1, '("# Created by HealpixVis")')
     write(1, '(i4," ",i4)') ppm%nx, ppm%ny
     write(1, '(i4," ")',advance='no') 255
-  
+
     do k = 1 , ppm%ny
       do j = 1, ppm%nx
         do i = 1, 3
@@ -112,17 +112,17 @@ contains
       plotopt = plot
      else
        plotopt = splot_none
-    end if   
+    end if
     if (present(size_scale)) then
      scale = size_scale
-    else 
-     scale=1 
+    else
+     scale=1
     end if
 
     if (present(symmetric)) then
      symm = symmetric
-    else 
-     symm = .false. 
+    else
+     symm = .false.
     end if
     if (present(Projection)) then
      proj = projection(1:1)
@@ -183,16 +183,16 @@ contains
         else
           stop 'HealpixVis_map2ppm: unsupported projection'
         end if
-    end if 
+    end if
 
   end subroutine HealpixVis_map2ppm
 
   subroutine HealpixVis_Map2Python(M, fname, nsideview, map_ix)
       type(HealpixMap), intent(in) :: M
-      integer, intent(in), optional :: nsideview 
+      integer, intent(in), optional :: nsideview
       character (LEN=*), intent(in) :: fname
       integer, intent(in), optional :: map_ix
-      type(HealpixMap) :: Mout 
+      type(HealpixMap) :: Mout
       integer pix, nside
       real(dp) verts(3,4)
       real color(3), aval
@@ -203,8 +203,8 @@ contains
 
       if (present(map_ix)) then
        pol = map_ix
-      else      
-       pol = 1 
+      else
+       pol = 1
       end if
 
       if (present(nsideview)) then
@@ -220,7 +220,7 @@ contains
 
      open(1, file=fname, action='write', status='replace')
      write (1,*) Mout%npix
-     do pix = 0, Mout%npix-1 
+     do pix = 0, Mout%npix-1
        aval = Mout%TQU(pix,pol)
       ! if (aval /= fmissval) then
         if (aval==0 .or. (aval == fmissval) ) then
@@ -236,7 +236,7 @@ contains
      close(1)
      call HealpixMap_Free(Mout)
      call HealpixVis_cmap_free(cmap)
- 
+
 
   end subroutine HealpixVis_Map2Python
 
@@ -257,10 +257,10 @@ contains
    else
     pol =1
     end if
-   do ix = 0, nframes*2-2 
+   do ix = 0, nframes*2-2
     ang = ix*HO_twopi/float(nframes-1)
- 
-    if (ix <= nframes-1) then 
+
+    if (ix <= nframes-1) then
       call Healpix_GetRotation(R, ang, 0.d0, 0.d0)
     else
       call Healpix_GetRotation(R, ang-HO_twopi,HO_pi/2,0.d0)
@@ -268,7 +268,7 @@ contains
 !    call HealpixVis_map2ppm2(M,ppm,HealpixVis_proj_orth,1,400,400, R, mapix = pol)
      write (frame,"(I4.4)") ix
 
-    call HealpixVis_ppm_write(ppm, trim(fileroot)//trim(frame)//'.ppm')    
+    call HealpixVis_ppm_write(ppm, trim(fileroot)//trim(frame)//'.ppm')
 
   end do
   call HealpixVis_ppm_Free(ppm)
@@ -292,8 +292,8 @@ contains
      scale= size_scale
     else
      scale=1
-    end if 
-    
+    end if
+
     splot = splot_none
     if (present(plot)) then
       splot = plot
@@ -304,16 +304,16 @@ contains
     else
        an = 1
     end if
-    
+
     if (present(symmetric)) then
      symm = symmetric
-    else 
-     symm = .false. 
+    else
+     symm = .false.
     end if
 
-    if (present(projection)) then 
+    if (present(projection)) then
      call HealpixVis_Map2PPM(M,ppm,projection,n=an,plot = splot, symmetric=symm, size_scale=scale)
-    else 
+    else
      call HealpixVis_Map2PPM(M,ppm,n=an,plot = splot, symmetric=symm, size_scale=scale)
     end if
 
@@ -340,7 +340,7 @@ contains
 
     open(1, file=fname, action='write', status='replace',form='formatted')
    ! write (1,3'(1I6)') M%spin
-     
+
     xsize = nxx
     ysize = nyy
     n2 = real(n**2)
@@ -364,13 +364,13 @@ contains
                    novec = .true.
             else
                pnum = HealpixMap_Ang2pix(M, theta, phi)
-               
+
               if (real(M%SpinField(pnum)) == fmissval .or. M%SpinField(pnum) ==0) then
                  novec = .true.
               else
                  av = av + M%SpinField(pnum)
               end if
-              
+
             end if
           end do
         end do
@@ -383,7 +383,7 @@ contains
          av = av /n2
           if (M%spin/=1) then
              vx = aimag(av)
-             vy = real(av)          
+             vy = real(av)
              len = abs(av)
              ang = atan2(vx,vy)
              vx = -len*sin(ang/M%spin)
@@ -391,10 +391,10 @@ contains
           else
            vx = -aimag(av)
            vy = real(av)
-          end if 
+          end if
           write (1,'(2I6,2e15.5)') i+1,j+1, vx, vy
         end if
-       
+
       end do
     end do
 
@@ -440,10 +440,10 @@ contains
       PPix => pixarr
     else
       if (M%nmaps ==0) then
-       PPix => M%Phi      
+       PPix => M%Phi
       else
        PPix => M%TQU(:,1)
-       off = 1      
+       off = 1
       end if
     end if
 
@@ -494,13 +494,13 @@ contains
                call Ang2vec(theta, phi, vec)
                vec = matmul(R,vec)
                pnum = HealpixMap_Vec2pix(M, vec)
-  
+
               else
                pnum = HealpixMap_Ang2pix(M, theta, phi)
               end if
               !write(*,*) i, j, x, y, phi, theta, pnum
-              value=PPix(pnum+off) 
-              
+              value=PPix(pnum+off)
+
               if (value == fmissval) then  !.or. value ==0) then
                  colour = colour + ppm_null
               else
@@ -520,9 +520,9 @@ contains
   end subroutine HealpixVis_map2ppm2
 
 
-    subroutine HealpixVis_MapMask2ppm(WM,WeightMap, fname, range) 
+    subroutine HealpixVis_MapMask2ppm(WM,WeightMap, fname, range)
      Type(HealpixMap) :: WM, WeightMap
-     character(LEN=*) :: fname 
+     character(LEN=*) :: fname
      type(HealpixPPM):: ppm, ppmmask
      real, intent(in), optional :: range
      integer i,j
@@ -536,19 +536,19 @@ contains
      end if
      call HealpixVis_Map2ppm(WM,ppm, n=4,plot = splot_none,symmetric = .true.)
      HealpixVis_force_range = .false.
-     call HealpixVis_Map2ppm(WeightMap,ppmmask, n=1,plot = splot_none,symmetric = .false.)    
+     call HealpixVis_Map2ppm(WeightMap,ppmmask, n=1,plot = splot_none,symmetric = .false.)
      do i=1,HealpixVis_DEF_WIDTH
       do j=1,HealpixVis_DEF_HEIGHT
        if (ppmmask%rgb(3,i,j)/=0 .and.  ppmmask%rgb(1,i,j)==0) then
          ppm%rgb(:,i,j)=0
-       end if  
+       end if
       end do
-     end do 
+     end do
     call HealpixVis_ppm_write(ppm,  fname)
     call HealpixVis_ppm_Free(ppm)
     call HealpixVis_ppm_Free(ppmmask)
     HealpixVis_force_range = old_force
-    
+
     end subroutine HealpixVis_MapMask2ppm
 
 
@@ -558,7 +558,7 @@ contains
 
   !==================================================================
 
-  ! Equidistant cylindrical projection 
+  ! Equidistant cylindrical projection
 
   subroutine HealpixVis_proj_ecp(x, y, inmap, theta, phi)
 
@@ -571,7 +571,7 @@ contains
     stop 'need to check phi sign'
     inmap = .true.
     phi = x*HO_pi
-    if (phi < 0.0_dp) phi = phi + HO_twopi 
+    if (phi < 0.0_dp) phi = phi + HO_twopi
     theta = (1.0_dp-y) * HO_pi/2.0_dp
 
   end subroutine HealpixVis_proj_ecp
@@ -585,10 +585,10 @@ contains
     real, intent(in) :: x, y
     logical, intent(out) :: inmap
     real(dp), intent(out) :: theta, phi
-    real(dp) vec(3), r2    
+    real(dp) vec(3), r2
 
     stop 'need to check phi sign'
- 
+
     r2=  x**2 + y**2
     inmap = r2 <= 1
     if (inmap) then
@@ -679,8 +679,8 @@ contains
     integer, intent(in) :: n
     integer err
     cmap%n = n
-    deallocate(cmap%x,stat = err) 
-    allocate(cmap%x(n), cmap%rgb(3,n))    
+    deallocate(cmap%x,stat = err)
+    allocate(cmap%x(n), cmap%rgb(3,n))
   end subroutine HealpixVis_cmap_init
 
   !======================================================================
@@ -732,7 +732,7 @@ contains
 
   !======================================================================
 
-  ! Allocate and set up "angry orange" colourmap. 
+  ! Allocate and set up "angry orange" colourmap.
 
   subroutine HealpixVis_cmap_orange(cmap)
     type(HealpixCMap), intent(inout) :: cmap
