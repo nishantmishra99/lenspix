@@ -13,7 +13,7 @@ LAPACKL = -mkl=sequential -lmpi -lhealpix -qopenmp
 #remove -xHost if cluster is not homogeneous
 #add -DHEALPIXI4B if using older healpix and get errors about arguments not matching
 FFLAGS = -O3 -xHost -ip -fpp -error-limit 500 -DMPIPIX -DMPI -heap-arrays -g -traceback
-
+#g and traceback allows for easier error handling
 #cfitsio = /usr/local/Cluster-Apps/cfitsio/intel/3.300
 #cfitsio = $(CFITSIO)
 cfitsio = /global/common/sw/cray/cnl6/haswell/cfitsio/3.410/intel/17.0.2.174/xhct5xe
