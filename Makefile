@@ -26,7 +26,7 @@ OBJFILES= toms760.o inifile.o utils.o spin_alm_tools.o \
 LENSPIX = $(OBJFILES) SimLens.o
 
 
-default: simlens
+default: simlens recon
 #all: simlens recon
 
 spin_alm_tools.o:  utils.o toms760.o

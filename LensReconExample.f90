@@ -122,14 +122,14 @@
     use Recon
     implicit none
     Type(HealpixInfo)  :: H
-    Type(HealpixMap)   :: M, GradPhi, MGradT, Output_lensing_potential_map, Output_unlensed_map, Non-normalized_QE
+    Type(HealpixMap)   :: M, GradPhi, MGradT, Output_lensing_potential_map, InputLensedMap, Non_normalized_QE
     Type(HealpixPower) :: UnlensedCl, LensedCl, Noise, Unlensed_power_spectrum_input, Lensed_power_spectrum_input
     Type(HealpixAlm)   :: A, SimAlm, PhiRecon, lensed_Alm
 
     integer            :: nside, lmax
     integer(I_NPIX)    :: npix
     character(LEN=1024)  :: w8name = '../Healpix_2.00/data/'
-    character(LEN=1024)  :: file_stem, cls_file, out_file_root, cls_lensed_file
+    character(LEN=1024)  :: file_stem, cls_file, out_file_root, cls_lensed_file, unlensed_power_spectrum_file, lensed_power_spectrum_file, input_lensed_map, output_lensing_potential_file_name
     character(LEN=1024) :: healpixloc, aname, in_map
     integer, parameter :: lens_interp =1, lens_exact = 2
     integer :: lens_method = lens_interp
@@ -245,9 +245,8 @@
 
         ! Create empty maps
         ! Rename maps for convenience
-        call HealpyAlm_nullify(lensed_Alm)
+        call HealpixAlm_nullify(lensed_Alm)
         call HealpixMap_nullify(Output_lensing_potential_map)
-        call HealpixMap_nullify(Output_unlensed_map)
 
         !call HealpixAlm_nullify(A)
         !call HealpixMap_nullify(GradPhi)
@@ -302,21 +301,20 @@
         else
             ! Generate the GRF unlensed map, and the GRF phi map
             ! write them to SimAlm
-            call HealpixAlm_Sim(SimAlm, UnlensedCl, rand_seed, HasPhi=.true., dopol = want_pol)
+!            call HealpixAlm_Sim(SimAlm, UnlensedCl, rand_seed, HasPhi=.true., dopol = want_pol)
             ! Measure the unlensed power spectrum, write it to P
-            call HealpixAlm2Power(SimAlm,P)
+!            call HealpixAlm2Power(SimAlm,P)
             ! Write the unlensed power spectrum to file
-            call HealpixPower_Write(P,trim(file_stem)//'_unlensed_simulated.dat')
+!            call HealpixPower_Write(P,trim(file_stem)//'_unlensed_simulated.dat')
 
             ! Compute the unlensed gradient, save it in "gradPhi"
-            call HealpixAlm2GradientMap(H,SimAlm, GradPhi,H%npix,'PHI')
+!            call HealpixAlm2GradientMap(H,SimAlm, GradPhi,H%npix,'PHI')
             ! Create lensed temperature map M,
             ! from SimAlm which contains unlensed T and phi,
             ! and from gradPhi which contains the unlensed gradient
-            call HealpixInterpLensedMap_GradPhi(H,SimAlm,GradPhi, M, interp_factor, interp_cyl)
+!            call HealpixInterpLensedMap_GradPhi(H,SimAlm,GradPhi, M, interp_factor, interp_cyl)
             ! Write lensed temperature map M to file
-            call HealpixMap_Write(M, in_map)
-        end if
+!            call HealpixMap_Write(M, in_map)
 
 
 
@@ -333,7 +331,7 @@
         call QuadraticPhi(H, Lensed_Alm, Non_normalized_QE, Lensed_power_spectrum_input, Noise, 2, lmax)
         !call QuadraticPhi(H,A, MGradT, LensedCl, Noise, 2,lmax)
         ! convert this map MGradT into alm, written to A
-        call HealpixMap2Alm(H, Non-normalized_QE, Lensed_Alm, lmax_est)
+        call HealpixMap2Alm(H, Non_normalized_QE, Lensed_Alm, lmax_est)
         !call HealpixMap2Alm(H, MGradT, A,lmax_est)
 
         ! compute normalized quadratic estimator for phi,
@@ -344,8 +342,8 @@
             !PhiRecon
             PhiRecon%Phi(1,i,:) =  A%SpinEB(1,i,:) * AL(i) / sqrt(i*(i+1.))
         end do
-        call HealpixAlm2Map(H, PhiRecon ,Output_unlensed_map, nside, DoPhi=.true.)
-        call HealpixMap_Write(PhiRecon, output_lensing_potential_file_name, overwrite=.true.)
+        call HealpixAlm2Map(H, PhiRecon ,Output_lensing_potential_map, npix, DoPhi=.true.)
+        call HealpixMap_Write(Output_lensing_potential_map, output_lensing_potential_file_name, overwrite=.true.)
         ! Compute the power spectrum of the normalized phi quadratic estimator
 !        call HealpixAlm2Power(PhiRecon, P)
         ! Write it to file
