@@ -240,34 +240,34 @@
 
         ! Create empty maps
         ! Rename maps for convenience
-        ! HealpyAlm_nullify(lensed_Alm)
-        ! HealpixMap_nullify(Output_lensing_potential_map)
-        ! HealpixMap_nullify(Output_unlensed_map)
+        call HealpyAlm_nullify(lensed_Alm)
+        call HealpixMap_nullify(Output_lensing_potential_map)
+        call HealpixMap_nullify(Output_unlensed_map)
 
-        call HealpixAlm_nullify(A)
-        call HealpixMap_nullify(GradPhi)
-        call HealpixMap_nullify(M)
+        !call HealpixAlm_nullify(A)
+        !call HealpixMap_nullify(GradPhi)
+        !call HealpixMap_nullify(M)
 
         !Read power spectrum of unlensed T, E, B and of phi
-        !call HealpixPower_ReadFromTextFile(Unlensed_power_spectrum_input, unlensed_power_spectrum_file, lmax, pol=.false., dolens = .false.)
-        call HealpixPower_ReadFromTextFile(UnlensedCl,cls_file,lmax,pol=.true.,dolens = .true.)
+        call HealpixPower_ReadFromTextFile(Unlensed_power_spectrum_input, unlensed_power_spectrum_file, lmax, pol=.false., dolens = .false.)
+        !call HealpixPower_ReadFromTextFile(UnlensedCl,cls_file,lmax,pol=.true.,dolens = .true.)
 
         ! Read power spectrum of lensed T, E, B (but not phi)
-        !call HealpixPower_ReadFromTextFile(Lensed_power_spectrum_input, lensed_power_spectrum_file, lmax, pol=.false., dolens = .false.)
-        call HealpixPower_ReadFromTextFile(LensedCl,cls_lensed_file,lmax,pol=.true.)
+        call HealpixPower_ReadFromTextFile(Lensed_power_spectrum_input, lensed_power_spectrum_file, lmax, pol=.false., dolens = .false.)
+        !call HealpixPower_ReadFromTextFile(LensedCl,cls_lensed_file,lmax,pol=.true.)
 
         ! Print power spectra to check
         ! rename or remove
-        ! print *,'at L=1500, Lens, Unlens, noise C_l =', Unlensed_power_spectrum_input%Cl(1500,1), Lensed_power_spectrum_input%Cl(1500,1), Noise%Cl(1500,1)
-        print *,'at L=1500, Lens, Unlens, noise C_l =', LensedCl%Cl(1500,1), UnlensedCl%Cl(1500,1), Noise%Cl(1500,1)
+        print *,'at L=1500, Lens, Unlens, noise C_l =', Unlensed_power_spectrum_input%Cl(1500,1), Lensed_power_spectrum_input%Cl(1500,1), Noise%Cl(1500,1)
+        !print *,'at L=1500, Lens, Unlens, noise C_l =', LensedCl%Cl(1500,1), UnlensedCl%Cl(1500,1), Noise%Cl(1500,1)
 
         ! Compute normalization for quadratic estimator,
         ! and write to file
         allocate(AL(lmax_phi))
         aname=trim(out_file_root)//'_AL.txt'
         if (.not. FileExists(aname)) then
-            !call GetA_L(Lensed_power_spectrum_input, Noise, AL, lmax_phi, lmax)
-            call GetA_L(LensedCl, Noise, AL, lmax_phi, lmax)
+            call GetA_L(Lensed_power_spectrum_input, Noise, AL, lmax_phi, lmax)
+            !call GetA_L(LensedCl, Noise, AL, lmax_phi, lmax)
             call CreateTxtFile(aname,1)
             do i=1, lmax_phi
                 write(1,*) i, AL(i)
@@ -288,8 +288,8 @@
         ! If an input lensed map is provided, read it
         if (FileExists(in_map)) then
             print *, 'reading input map', trim(in_map)
-            call HealpixMap_Read(M,in_map)
-            !call HealpixMap_Read(InputLensedMap, input_lensed_map)
+            !call HealpixMap_Read(M,in_map)
+            call HealpixMap_Read(InputLensedMap, input_lensed_map)
             call HealpixAlm_Nullify(SimAlm)
 
 
@@ -320,26 +320,26 @@
 !Note no noise added to map, N0=A_L will not be correct noise bias
 
         ! Get the lensed alm A from the lensed map M
-        call HealpixMap2Alm(H,M, A,lmax)
-        !call HealpixMap2Alm(H, InputLensedMap, Lensed_Alm, lmax)
+        !call HealpixMap2Alm(H,M, A,lmax)
+        call HealpixMap2Alm(H, InputLensedMap, Lensed_Alm, lmax)
         ! Compute non-normalized quadratic estimator for phi,
         ! from lensed alm in A,
         ! write it to MGradT
-        !call QuadraticPhi(H, Lensed_Alm, Non-normalized_QE, Lensed_power_spectrum_input, Noise, 2, lmax)
-        call QuadraticPhi(H,A, MGradT, LensedCl, Noise, 2,lmax)
+        call QuadraticPhi(H, Lensed_Alm, Non_normalized_QE, Lensed_power_spectrum_input, Noise, 2, lmax)
+        !call QuadraticPhi(H,A, MGradT, LensedCl, Noise, 2,lmax)
         ! convert this map MGradT into alm, written to A
-        !call HealpixMap2Alm(H, Non-normalized_QE, Lensed_Alm, lmax_est)
-        call HealpixMap2Alm(H, MGradT, A,lmax_est)
+        call HealpixMap2Alm(H, Non-normalized_QE, Lensed_Alm, lmax_est)
+        !call HealpixMap2Alm(H, MGradT, A,lmax_est)
 
         ! compute normalized quadratic estimator for phi,
         ! write it to PhiRecon
-        !call HealpixAlm_Init(PhiRecon,lmax_phi,npol=0,HasPhi=.true.)
         call HealpixAlm_Init(PhiRecon,lmax_phi,npol=0,HasPhi=.true.)
+        !call HealpixAlm_Init(PhiRecon,lmax_phi,npol=0,HasPhi=.true.)
         do i=1,lmax_phi
             !PhiRecon
             PhiRecon%Phi(1,i,:) =  A%SpinEB(1,i,:) * AL(i) / sqrt(i*(i+1.))
         end do
-        !call HealpixAlm2Map(H, PhiRecon ,Output_unlensed_map, nside, .true.)
+        call HealpixAlm2Map(H, PhiRecon ,Output_unlensed_map, nside, DoPhi=.true.)
 
         ! Compute the power spectrum of the normalized phi quadratic estimator
 !        call HealpixAlm2Power(PhiRecon, P)
