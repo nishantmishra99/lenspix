@@ -122,9 +122,9 @@
     use Recon
     implicit none
     Type(HealpixInfo)  :: H
-    Type(HealpixMap)   :: M, GradPhi, MGradT
-    Type(HealpixPower) :: UnlensedCl, LensedCl, Noise, P
-    Type(HealpixAlm)   :: A,SimAlm,PhiRecon
+    Type(HealpixMap)   :: M, GradPhi, MGradT, Output_lensing_potential_map, Output_unlensed_map, Non-normalized_QE
+    Type(HealpixPower) :: UnlensedCl, LensedCl, Noise, Unlensed_power_spectrum_input, Lensed_power_spectrum_input
+    Type(HealpixAlm)   :: A, SimAlm, PhiRecon, lensed_Alm
 
     integer            :: nside, lmax
     integer(I_NPIX)    :: npix
@@ -167,6 +167,11 @@
     cls_file = Ini_Read_String('cls_file')
     cls_lensed_file = Ini_Read_String('cls_lensed_file')
     out_file_root = Ini_Read_String('out_file_root')
+
+    unlensed_power_spectrum_file = Ini_Read_String('unlensed_power_spectrum_file')
+    lensed_power_spectrum_file = Ini_Read_String('lensed_power_spectrum_file')
+    input_lensed_map = Ini_Read_String('input_lensed_map')
+    output_lensing_potential_file_name = Ini_Read_String('output_lensing_potential_file_name')
 
     want_pol = Ini_Read_Logical('want_pol')
     rand_seed = Ini_Read_Int('rand_seed')
@@ -340,7 +345,7 @@
             PhiRecon%Phi(1,i,:) =  A%SpinEB(1,i,:) * AL(i) / sqrt(i*(i+1.))
         end do
         call HealpixAlm2Map(H, PhiRecon ,Output_unlensed_map, nside, DoPhi=.true.)
-
+        call HealpixMap_Write(PhiRecon, output_lensing_potential_file_name, overwrite=.true.)
         ! Compute the power spectrum of the normalized phi quadratic estimator
 !        call HealpixAlm2Power(PhiRecon, P)
         ! Write it to file
